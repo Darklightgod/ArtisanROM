@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        c1s audio source test 1
+
+        Keep the existing Samsung 0..15 stream range unchanged.
+        Only override the initial framework defaults for ringtone and
+        notification so this variable can be isolated independently.
+    -->
+    <integer name="config_audio_ring_vol_default">7</integer>
+    <integer name="config_audio_notif_vol_default">7</integer>
+</resources>
