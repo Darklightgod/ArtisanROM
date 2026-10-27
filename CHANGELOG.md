@@ -1,5 +1,50 @@
 # ArtisanROM changelog
 
+# 4.0.2
+- Fix HDR photos on Exynos 990 (ArcSoft LLHDR/MFHDR now get proper per-frame EV, rear MFHDR merges correctly, no more HDR crashes) (thx @utzy)
+- Use ArcSoft LLHDR/MFHDR nodes on c2s/c1s (thx @utzy)
+- Fix dropped frames when switching back to video recording (thx @HackMeGG)
+- Fix screen shrinking during boot on Exynos 990 (DDIScaler fix) (thx @HackMeGG)
+- Enable scene detection for document scan in camera (thx @HackMeGG)
+- Fix KernelSU SELinux issues (moved kernel-side fix into kernel source, rebased sepolicy patch)
+- Update KernelSU-Next manager to v3.4.2
+- Update Play Integrity default fingerprint (thx @salvogiangri)
+- Add Morning Flower ringtone
+
+# 4.0.1
+- Fix Google play system updates
+- Fix instagram crash
+- Fix random reboots
+- Add stock wallpapers (thx @chomik)
+
+# 4.0.0
+- Switch to S24+ firmware
+- OneUI 8.5 (thx pablo aka ats0c_ and Miguelito aka MIG29)
+- Fix UWB
+- Fix Airplanemode
+- Fix bootloop after flashing zygisk on c1s
+- Fix screen off spen
+- Fix Post processing on Note20/Ultra
+- Fix Screen Resolution changer showing on incompatible model
+- Fix Refresh Rate changer showing on incompatible model
+- Fix Updater App not showing kernel updates
+- Update KernelSU-Next to latest v3.4.0
+- Add liquid glass to updater app
+- Improve battery life
+- Switch to S26 wallpapers
+- Add Device Image Changer
+- Remove Bootsound
+- Fix distortion after increasing image resolution
+- Fix Galaxy AI photo remastering
+- Fix Secure folder
+- Fix lag on pin/pattern/password setup
+- Fix fingerprint not scanning after clearing cache in twrp
+- Fix Outdoor mode not working
+- Fix LOG not working on Pro video
+- Fix VOLD
+- Update Viper4Android to latest
+- General QOL improvements on Kernel
+
 # 3.5.1
 - Switch to S22 Ultra firmware
 - Fix 120hz
