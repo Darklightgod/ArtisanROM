@@ -1,8 +1,10 @@
 # Note20 c1s: resolution controls change density without changing display mode
 
 Investigation date: 2026-11-03, Europe/Berlin.
-Status: source configuration correction with host-side regression coverage;
-no rebuilt ROM, flashable fix or physical-device validation is included.
+Status: source configuration correction with host-side regression coverage.
+A separate initial-density module passed the owner's reported device check.
+The installed-ROM Settings correction still needs integration, signing and
+physical-device validation; no complete rebuilt ROM is included.
 
 ## Device and source provenance
 
@@ -71,8 +73,9 @@ Settings repeatedly reads `width = 1080 screenResolution = 1` and also logs
 `SecDisplayUtils: No support`.
 
 This establishes density changes initiated by the resolution screen without an
-observed mode change. Repeated updates amplify the effect. It does not establish
-the exact source revision or a line-level cause inside the installed APK.
+observed mode change. Repeated updates amplify the effect. The later direct APK
+inspection below identifies the zero-width code path; the complete installed
+ROM's source revision still requires matching.
 
 ## Boot observation: distinguish metadata from the visible UI
 
@@ -92,6 +95,110 @@ These are different stages and sources of density data. Initial 213 dpi
 metadata alone does not prove a visible tablet UI, a faulty hardware density,
 or an automatic resolution switch. A missing first-start override is a
 hypothesis. The native mode stays 1080 x 2400 in the captured sequence.
+
+## Follow-up inspection of the installed files
+
+The owner subsequently supplied the actual Settings APK, floating features,
+32/64-bit vendor display libraries, early boot logs and property outputs.
+The raw inputs are not committed.
+
+### Settings code path and candidate correction
+
+Inspected package: `com.android.settings`, version name 16 / version code 36,
+shared UID `android.uid.system`.
+APK SHA-256:
+`41a68fa18f360576a3e55100021dc7e2b6f22dfde9f3c39c3a06b71537458375`.
+
+The affected Samsung classes are in `classes5.dex` in this APK:
+
+1. `ScreenResolutionPreferenceController.getAvailabilityStatus()I` returns
+   AVAILABLE (0) outside desktop windowing without testing physical resolution
+   capabilities.
+2. `SecDisplayUtils.initSupportedResolutionData(Display)` logs `No support`
+   unless there are exactly three distinct physical sizes. In the unsupported
+   case it leaves the initially zero HD/FHD/WQHD width fields unchanged.
+3. `SecDisplayUtils.setDisplayMode(Context,String,Display)` maps the selection
+   to a zero width, falls back to the current display mode, and then accepts
+   zero through an `if-gez v0` guard. It can consequently reach the forced-size,
+   preferred-mode and selection-dependent density updates.
+
+A separate c1s-only candidate replaces the controller result with
+UNSUPPORTED_ON_DEVICE (3) and changes this width guard from `if-gez v0` to
+`if-gtz v0`. The installed APK's own BasePreferenceController confirms that
+status 3 means unsupported. Normal zoom and shared density helpers are not
+changed.
+
+This candidate was applied to the two actual decoded classes, assembled with
+smali 2.5.2 and parsed again. Both DEX checksums were valid. Exactly two methods
+changed; the other 81 methods in these two classes retained identical
+instructions. The width guard changes one instruction with unchanged operands
+and branch target. Six host tests covered the installer, real-class patching,
+idempotence and rejection of unknown donors/targets.
+
+These checks are separate from this branch's older configuration tests.
+The APK candidate is not integrated into this older S22 build, and has not
+been installed or tested on the phone. A complete compatible ROM build and
+platform signing remain required.
+
+### XML and vendor-library applicability
+
+The supplied floating-feature XML already lacks
+`SEC_FLOATING_FEATURE_COMMON_CONFIG_DYN_RESOLUTION_CONTROL`, so deleting that
+entry alone cannot fix the installed Settings availability. Its HFR entries
+still include default 120, mode 3 and rates up to 120; treat that as a separate
+c1s configuration issue rather than proof the panel runs at 120 Hz.
+
+| Vendor input | SHA-256 |
+| --- | --- |
+| 32-bit libexynosdisplay.so | `5a3279b615291ec9690a4e286a7ac5699ad2893fd9f67b1cb3cf2c963f0c5f2a` |
+| 64-bit libexynosdisplay.so | `6477a33da2aca40a902cb1e8b22f988791da991bfb7b96129fd23801e646d2be` |
+
+Neither library contains the original or replacement signatures from the
+inspected upstream DDIScaler module. That exact patch is not directly
+applicable, and absence alone does not classify the binaries as unpatched.
+No vendor binary was changed.
+
+## Initial-density device check reported on 2026-11-03
+
+Before the test, both boot logs contained:
+
+```text
+SurfaceFlinger: ro.sf.init.lcd_density must be defined as a build property
+```
+
+The owner read an empty `ro.sf.init.lcd_density` and
+`ro.sf.lcd_density=450`, with the same result in local and root shells.
+
+The separate KernelSU test module `c1s_init_density_test`, version 0.1.0,
+adds only `ro.sf.init.lcd_density=450` during regular early module-property
+processing. It does not install a Settings APK, change vendor libraries,
+adjust the density override, or install SELinux rules. After the requested
+module/reboot test procedure, the owner reported these command outputs:
+
+```text
+getprop ro.sf.init.lcd_density
+450
+
+wm size
+Physical size: 1080x2400
+
+wm density
+Physical density: 450
+Override density: 448
+```
+
+This is positive device evidence that WindowManager now reports an initial
+density of 450 rather than the previously captured 213, while the existing
+448 user override and native dimensions are retained. It does not establish
+that the separate resolution-menu bug is fixed or reproduce the very first
+post-flash setup. A new boot log, repeated restarts and broader UI checks
+have not yet been supplied.
+
+Rollback for this property test is to disable/remove that module and reboot.
+For a permanent c1s build fix, initialize the compositor property before
+SurfaceFlinger using the verified base density, without forcing 448 or
+repeatedly resetting the user's zoom. Preserve that distinction when reporting
+hardware validation.
 
 ## Source correction in this branch
 
@@ -135,15 +242,17 @@ an NPU-model initialization timeout precedes one captured crash. The first
 events predate the resolution-menu experiment. Do not disable that service as
 part of this display fix.
 
-## Physical-device acceptance checks, still pending
+## Remaining integration and physical-device acceptance checks
 
 1. Build against the chosen and documented firmware source and validate all
    smali patch applications and rebuilt APKs. Record build/commit identifiers.
 2. On c1s, verify native 1080 x 2400 / 60 Hz and absence of unsupported HD/WQHD
    controls. A deep link must not alter density through an unsupported path.
 3. Check ordinary screen zoom, font size and accessibility settings still work.
-4. Capture density/mode data immediately after a normal boot and verify the
-   user's chosen scaling persists. Do not wipe a daily-use device for this test.
+4. Extend the initial-density device check above with a fresh boot log,
+   repeated normal restarts, and zoom/accessibility checks. The single reported
+   size/density check passed; the remaining checks are pending. Do not wipe a
+   daily-use device for this test.
 5. Test a genuinely fresh setup only on an authorized test installation; do not
    infer first-boot behavior from initial DisplayDeviceInfo metadata.
 6. Confirm c2s and other supported targets retain their resolution controls.
