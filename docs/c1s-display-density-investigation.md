@@ -216,9 +216,28 @@ invented. Screen zoom and font scaling remain available through their ordinary
 controls. Existing c1s audio and 60 Hz changes are retained.
 
 Host tests execute that actual resolution feature section with the real c1s
-and c2s configurations and record its build-helper calls. They check that c1s
-does not advertise HD/WQHD or select a donor SurfaceFlinger, while c2s retains
-the pre-existing supported path. They do not assemble the patched APKs.
+and c2s configurations and record its build-helper calls. Additional checks run
+the actual `apply_modules.sh` scheduler over that section and the complete
+`stock_blobs/customize.sh`, using controlled firmware helpers and mutable
+floating-feature state. They check the value after both modules in the real
+sorted order. They do not assemble the patched APKs or build a complete ROM.
+
+## Codex review follow-up: later stock-blobs override
+
+The review of commit `2abbb46d93c25eeaefee75f7edc3fe00dc702999` identified
+an incomplete build gate in this older fork. Its `stock_blobs` module wrote
+`WQHD,FHD,HD` for every Exynos 990 target after `product_feature` had deleted
+the capability for c1s. The original section-only tests missed that later write.
+
+The new test reproduced the finding before the fix: the c1s final-state check
+failed with `WQHD,FHD,HD`, while the other three checks passed. The later
+assignment is now gated on `TARGET_COMMON_SUPPORT_DYN_RESOLUTION_CONTROL`
+as well as the platform. All four checks then passed: c1s stays disabled after
+`stock_blobs`, while c2s retains its supported resolution list and donor path.
+
+This corrects the reviewed fork build path. The supplied installed 4.0.2 XML
+already lacked this entry, so this older-source override must not be claimed
+as the proven cause of that installed ROM's separate Settings bug.
 
 ## Existing upstream work and remaining investigation
 

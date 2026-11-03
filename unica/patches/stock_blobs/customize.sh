@@ -77,6 +77,8 @@ fi
 
 unset TARGET_FIRMWARE_PATH
 unset -f MATCH_TARGET_FEATURES
-if [[ "$TARGET_PLATFORM" == "exynos990" ]]; then
+# Preserve the capability selected earlier by product_feature.
+if [[ "$TARGET_PLATFORM" == "exynos990" ]] && \
+        $TARGET_COMMON_SUPPORT_DYN_RESOLUTION_CONTROL; then
     SET_FLOATING_FEATURE_CONFIG "SEC_FLOATING_FEATURE_COMMON_CONFIG_DYN_RESOLUTION_CONTROL" "WQHD,FHD,HD"
 fi
